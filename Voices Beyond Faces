@@ -1,0 +1,358 @@
+// Speech Object
+let speech;
+let morse,
+  curr_key = "";
+let particleCount = 8000;
+let particles = new Array(particleCount + 1);
+
+const timer = {
+  delay:
+150,
+  start:
+null,
+  stop:
+null,
+  running:
+false,
+  };
+
+let charcount = 0,
+  char_idx = 0;
+
+const scaleArray = 60;
+let osc,
+  envelope,
+  fft,
+  note = 0;
+
+let results = "I am testing";
+let setTexts = [];
+let showTextAll = [];
+let font;
+function preload() {
+  morse = loadJSON("morse.json");
+  font=loadFont("temp.ttf");
+}
+function addSent() {
+  setTexts.push(
+    new Sent1(
+    "She is a responsible person",
+    "If only she could be more responsible"
+    )
+    );
+  setTexts.push(
+    new Sent1(
+    "She is sentimental and lonely",
+    "She is a childlike and pure person"
+    )
+    );
+  setTexts.push(new Sent1("He is relatively sleek", "He was sincere"));
+  setTexts.push(
+    new Sent1("She is a lot of sentimentality and lonely", "She was decisive")
+    );
+  setTexts.push(
+    new Sent1(
+    "He is conscientious and assiduous,and he is self-demanding",
+    "He has procrastination"
+    )
+    );
+  setTexts.push(
+    new Sent1("He is a very attractive person", "He is a bit bored")
+    );
+  setTexts.push(new Sent1("She is a patient person", "She is very pushy"));
+  setTexts.push(
+    new Sent1(
+    "She is a master photographer and has her own ideas",
+    "She likes to follow the trend"
+    )
+    );
+  setTexts.push(
+    new Sent1("He is uncommunicative and childish", "He is a man of duty")
+    );
+  setTexts.push(
+    new Sent1("She is a talented person", "A non-talkative person")
+    );
+  setTexts.push(
+    new Sent1(
+    "She is a person who can tell right from wrong",
+    "She is easily influenced by others and has no ability to distinguishright from wrong"
+    )
+    );
+  setTexts.push(
+    new Sent1("He is a boring and disguised person", "He was a steady boy")
+    );
+  setTexts.push(
+    new Sent1(
+    "She is enthusiasticandcheerful and has a strongsenseofself-esteem",
+    "She was always noisy"
+    )
+    );
+  setTexts.push(
+    new Sent1(
+    "She has alot of personality",
+    "She was always noisy14She has alot of personality"
+    )
+    );
+  setTexts.push(
+    new Sent1(
+    "A person with a rich inner world who has her own unique opinion oneverything",
+    "A pessimistic, socially fearful pers on"
+    )
+    );
+}
+function tranferText() {
+  results = results.toLowerCase();
+  for (let i = 0; i < results.length; i++) {
+    let curr_key = results.charAt(i);
+    if (morse.hasOwnProperty(curr_key)) {
+      charcount = charcount + morse[curr_key].replace(/\s+/g, "");
+    } else if (curr_key == " ") {
+      charcount = charcount + " ";
+    }
+  }
+  console.log(charcount);
+}
+class Sent1 {
+  constructor(ques, ans) {
+    this.ques = ques;
+    this.ans = ans;
+    console.log(ques, ans);
+  }
+}
+class TextParticles {
+  constructor(textShow) {
+    this.textShow = textShow;
+    this.x = (width);
+    this.y = random(height);
+    this.w = random(width / 10, width / 8);
+    this.alive=true;
+    this.startTime=millis();
+    this.strength=100;
+    this.lenText=textWidth(this.textShow);
+    this.vel=random(1, 5);
+  }
+
+  display() {
+    textAlign(LEFT);
+    fill(255, this.strength);
+    textSize(20);
+    text(this.textShow, this.x, this.y);
+  }
+  update() {
+    this.x-=this.vel;
+    if (this.x<-this.lenText) {
+      this.x=width;
+    }
+    let elapsed = millis() - this.startTime;
+    let forgettingRate = 0.0002; // 遗忘速度
+
+    // 计算记忆强度
+    this.strength = 100 * Math.exp(-forgettingRate * elapsed);
+
+    if (this.strength > 0) {
+      this.alive=true;
+    } else {
+      // 如果记忆强度小于等于0，从数组中移除记忆
+      this.alive=false;
+    }
+  }
+}
+let globalRec = "";
+let spee;
+let tt=0;
+function mousePressed() {
+  if (tt==0) {
+    tt=1;
+    audioInit();
+  }
+  
+}
+//   if (mouseX > 0 && mouseX < 100 && mouseY > 0 && mouseY < 100) {
+//     let fs = fullscreen();
+//     fullscreen(!fs);
+
+//   }
+// }
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  textAlign(CENTER);
+  colorMode(RGB, 2);
+  textFont(font);
+  for (let x = particleCount; x >= 0; x--) {
+    particles[x] = new Particle();
+  }
+
+  // Create a Speech Recognition object with callback
+  speechRec = new p5.SpeechRec("en-US", gotSpeech);
+  spee = new p5.Speech();
+  // "Continuous recognition" (as opposed to one time only)
+  let continuous = true;
+  // If you want to try partial recognition (faster, less accurate)
+  let interimResults = false;
+  // This must come after setting the properties
+  speechRec.start(continuous, interimResults);
+  spee.setVolume(0.5);
+  // DOM element to display results
+  let output = select("#speech");
+
+  addSent();
+  console.log(setTexts[0].ques);
+
+  // Speech recognized event
+  function gotSpeech() {
+    // Something is there
+    // Get it as a string, you can also get JSON with more info
+    console.log(speechRec);
+    if (speechRec.resultValue) {
+      let said = speechRec.resultString;
+      // Show user
+      globalRec = said;
+      let str1 = "She is a talented person";
+      let str2 = said;
+      for (let k = 0; k < setTexts.length; k++) {
+        str1 = setTexts[k].ques;
+        console.log(setTexts[k].ques);
+        let similarity =
+          1 -
+          levenshteinDistanceIgnoreCase(str1, str2) /
+          Math.max(str1.length, str2.length);
+        textSize(24);
+        fill(0);
+        console.log(
+          "Similarity: " + (similarity * 100).toFixed(2) + "%",
+          50,
+          100
+          );
+        if (similarity > 0.8) {
+          results = setTexts[k].ans;
+          console.log(results);
+          tranferText();
+          for (let i=0; i<7; i++) {
+            showTextAll.push(new TextParticles(setTexts[k].ques));
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+function draw() {
+  background(0);
+  textAlign(CENTER);
+  let turn = 0;
+
+  if (mouseIsPressed) {
+    turn = (mouseX - pmouseX) * 0.00001;
+  }
+  push();
+  translate(width / 2, height / 2);
+  for (let i = particleCount; i >= 0; i--) {
+    let particle = particles[i];
+    particle.update(turn);
+  }
+  pop();
+
+  textSize(20);
+  fill(255);
+  //text('I heard: "' + globalRec + '"', width * 0.5, height * 0.15);
+
+  timerState();
+
+  if (charcount.length > 0) {
+    if (!timer.running) {
+      //startLoop();
+      if (charcount.charAt(0) == "•") {
+        startLoop(100);
+        playNote(1);
+      } else if (charcount.charAt(0) == "—") {
+        startLoop(300);
+        playNote(0);
+      } else if (charcount.charAt(0) == " ") {
+        startLoop(500);
+      }
+      charcount = charcount.substring(1, charcount.length);
+    }
+    //text(morse[curr_key], width * 0.5, height * 0.5);
+  }
+  //text(charcount, width * 0.5, height * 0.8);
+  for (let i = 0; i < showTextAll.length; i++) {
+    showTextAll[i].display();
+    showTextAll[i].update();
+  }
+}
+// 使用Levenshtein距离计算字符串相似度
+function levenshteinDistanceIgnoreCase(a, b) {
+  a = a.toLowerCase();
+  b = b.toLowerCase();
+
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) == a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+          );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+class Particle {
+  constructor() {
+    this.angle = random(0, 628) * 0.01;
+    this.radius = random(width / 30, width / 2);
+    this.tilt = random(-20, 20);
+    this.dec = (200 - this.radius) * 0.000024;
+    this.turnVelocity = 0;
+    this.previous = createVector(0, 0);
+  }
+
+  update(turn) {
+    let current = createVector(
+      this.radius * cos(this.angle),
+      this.tilt + 20 * cos(this.angle + 3.5),
+      this.radius * sin(this.angle)
+      );
+
+    if (turn !== 0) {
+      this.turnVelocity = turn * (201 - this.radius);
+    }
+
+    this.angle -= this.dec + this.turnVelocity;
+    this.turnVelocity *= 0.95;
+
+    if (this.previous.x === 0) {
+      this.previous.set(current);
+    }
+
+    isoLine(current, this.previous, this.angle);
+    this.previous.set(current);
+  }
+}
+
+function isoLine(begin, end, angle) {
+  let newBegin = createVector(
+    begin.x - begin.z,
+    (begin.x + begin.z) / 2 - begin.y
+    );
+  let newEnd = createVector(end.x - end.z, (end.x + end.z) / 2 - end.y);
+
+  stroke(1 + cos(angle));
+  line(newBegin.x, newBegin.y, newEnd.x, newEnd.y);
+}
